@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "239412184257",
+    "project_id": "orion-wholesale-951bf",
+    "storage_bucket": "orion-wholesale-951bf.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:239412184257:android:65870a8ea593952135c040",
+        "android_client_info": {
+          "package_name": "com.orionwholesale.com"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQiyicSTpE3RIrvUMdiac0JcjV-hMjQvI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
