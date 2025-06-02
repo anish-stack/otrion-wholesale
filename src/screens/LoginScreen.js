@@ -19,431 +19,128 @@ import { bindActionCreators } from 'redux';
 import { doLogin } from '@actions';
 import getApi from "@apis/getApi";
 import Toast from 'react-native-root-toast';
-import FBSDK, { LoginManager } from 'react-native-fbsdk';
+import { LoginManager, AccessToken, GraphRequest, GraphRequestManager } from 'react-native-fbsdk';
 import auth from '@react-native-firebase/auth';
 import { firebase } from '@react-native-firebase/app';
 import { CountryPicker } from "react-native-country-codes-picker";
 import OTPInputView from '@twotalltotems/react-native-otp-input'
-
-const { AccessToken, GraphRequest, GraphRequestManager } = FBSDK;
 import {
     GoogleSignin,
     GoogleSigninButton,
-    statusCodes,//
+    statusCodes,
 } from '@react-native-google-signin/google-signin';
 import AsyncStorage from "@react-native-community/async-storage";
+
+// Configure Google Sign-In
 GoogleSignin.configure({
     webClientId: '239412184257-4boc3ro714hnou9a04a7fvlbpvbbpg4v.apps.googleusercontent.com',
     scopes: ['profile', 'email']
 });
 
-try {
-    if (!firebase.apps.length) {
-        firebase.initializeApp({
-            apiKey: 'AIzaSyCQiyicSTpE3RIrvUMdiac0JcjV-hMjQvI',
-            authDomain: 'orion-wholesale-951bf.firebaseapp.com',
-            projectId: 'orion-wholesale-951bf',
-            storageBucket: 'orion-wholesale-951bf.firebasestorage.app',
-            appId: '1:239412184257:android:65870a8ea593952135c040',
-            messagingSenderId: '239412184257',
-        });
+// Firebase configuration
+const firebaseConfig = {
+    apiKey: 'AIzaSyCQiyicSTpE3RIrvUMdiac0JcjV-hMjQvI',
+    authDomain: 'orion-wholesale-951bf.firebaseapp.com',
+    projectId: 'orion-wholesale-951bf',
+    storageBucket: 'orion-wholesale-951bf.firebasestorage.app',
+    appId: '1:239412184257:android:65870a8ea593952135c040',
+    messagingSenderId: '239412184257',
+};
 
+// Initialize Firebase
+if (!firebase.apps.length) {
+    try {
+        firebase.initializeApp(firebaseConfig);
+    } catch (err) {
+        console.log("Firebase initialization error: ", err);
     }
-} catch (err) {
-    // ignore app already initialized error in snack
-    console.log("initializeApp error : ", err)
 }
 
-// Firebase references
-// Firebase references
-// const auth = getAuth();
-
-
 function LoginScreen(props) {
-
-    const [formData, setData] = React.useState({ email: null, password: null, submited: false, loading: false, type: null, message: null, verificationView: false, navTo: 'HomeScreen', mobileSubmitted: false, });
+    const [formData, setData] = React.useState({ 
+        email: null, 
+        password: null, 
+        submited: false, 
+        loading: false, 
+        type: null, 
+        message: null, 
+        verificationView: false, 
+        navTo: 'HomeScreen', 
+        mobileSubmitted: false 
+    });
     const [state, setDatapassword] = React.useState({ secureEntry: true });
     const [errors, setErrors] = React.useState({});
-    const { email, password, submited, loading, message, type, navTo, verificationView } = formData;
-    const recaptchaVerifier = React.createRef();
     const [confirm, setConfirm] = React.useState(null);
     const [show, setShow] = React.useState(false);
     const [mobileNumber, setMobile] = React.useState(null);
     const [countryCode, setCountryCode] = React.useState('+91');
     const [otpLoading, setOTPLoading] = React.useState(false);
     const [otpp, setOTP] = React.useState(null);
+    const [mode, setMode] = React.useState('light');
+
+    const { email, password, submited, loading, message, type, navTo, verificationView } = formData;
 
     useEffect(() => {
-
-    }, [
-        //   props.navigation.navigate('ProfileScreen')
-    ]);
+        // Get theme mode
+        const getMode = async () => {
+            try {
+                const savedMode = await AsyncStorage.getItem('mode');
+                setMode(savedMode || 'light');
+            } catch (error) {
+                console.log('Error getting mode:', error);
+            }
+        };
+        getMode();
+    }, []);
 
     const validate = () => {
+        setData({ ...formData, submited: true });
+        const newErrors = {};
 
-        setData({ ...formData, submited: true })
-
-        if (email == null) {
-            logfunction("FIeld ", 'Email is required')
-            setErrors({
-                ...errors,
-                email: 'Email is required'
-            });
+        if (!email) {
+            newErrors.email = 'Email is required';
             return false;
         }
-        else if (!isValidEmail(email).success) {
-            logfunction("FIeld ", isValidEmail(email).message)
-            setErrors({
-                ...errors,
-                invalidEmail: isValidEmail(email).message
-            });
+        
+        if (!isValidEmail(email).success) {
+            newErrors.invalidEmail = isValidEmail(email).message;
             return false;
         }
-        else if (!isValidpassword(password).success) {
-            logfunction("FIeld ", isValidpassword(password).message)
-            setErrors({
-                ...errors,
-                password: isValidpassword(password).message
-            });
+        
+        if (!isValidpassword(password).success) {
+            newErrors.password = isValidpassword(password).message;
             return false;
         }
 
-        return true;
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
 
-    }
-
-    const login = () => {
+    const login = async () => {
         if (validate()) {
             setData({
                 ...formData,
                 loading: true
             });
 
-            let sendData = new FormData();
+            const sendData = new FormData();
             sendData.append('email', email);
             sendData.append('password', password);
-            sendData.append('firebase_token', props.FCM_TOKEN)
+            sendData.append('firebase_token', props.FCM_TOKEN);
 
             try {
-                getApi.postData(
-                    'user/login',
-                    sendData,
-                ).then((response => {
-                    logfunction("RESPONSE ", response)
-                    if (response.status == 1) {
-                        logfunction("RESPONSE ", 'Success')
-                        setData({
-                            ...formData,
-                            email: null,
-                            password: null,
-                            loading: false
-                        });
-                    }
-                    else {
-                        setData({
-                            ...formData,
-                            type: 'error',
-                            message: response.message,
-                            loading: false
-                        });
-                        setTimeout(() => {
-                            setData({
-                                ...formData,
-                                message: null,
-                                loading: false
-                            })
-                        }, 3000);
-                    }
-                    props.doLogin(response, navTo);
-                }));
-            } catch (error) {
-                logfunction("Error", error)
-                setData({
-                    ...formData,
-                    loading: false
-                });
-            }
-        }
-    }
-
-    const validateMobile = () => {
-
-        setData({ ...formData, mobileSubmitted: true })
-
-        if (!isValidMobile(mobileNumber).success) {
-            logfunction("FIeld ", isValidMobile(mobileNumber).message)
-            setErrors({
-                ...errors,
-                invalidmobileNumber: isValidMobile(mobileNumber).message
-            });
-            return false;
-        }
-
-        return true;
-
-    }
-
-
-
-    const sendOtp = async () => {
-        if (validateMobile()) {
-            setData({
-                ...formData,
-                loading: true
-            });
-
-            let sendData = new FormData();
-            sendData.append('mobileNumber', mobileNumber);
-            sendData.append('firebase_token', props.FCM_TOKEN)
-
-            try {
-                getApi.postData(
-                    'user/checkcustomer',
-                    sendData,
-                ).then((async response => {
-                    logfunction("RESPONSE ", response)
-                    if (response.status == 1) {
-                        const confirmation = await auth().signInWithPhoneNumber(countryCode + '' + mobileNumber);
-                        setConfirm(confirmation);
-                        setData({
-                            ...formData,
-                            loading: false,
-                            verificationView: true
-                        });
-                        //  props.navigation.push("VerifyOTPScreen", { VERIFICATION_DATA: confirmation })
-                    }
-                    else {
-                        setData({
-                            ...formData,
-                            type: 'error',
-                            message: 'Customer not found',
-                            loading: false
-                        });
-                        setTimeout(() => {
-                            setData({
-                                ...formData,
-                                message: null,
-                                loading: false
-                            })
-                            props.navigation.push("RegisterScreen")
-                        }, 1000);
-                    }
-                }));
-            } catch (error) {
-                logfunction("Error", error)
-                setData({
-                    ...formData,
-                    loading: false
-                });
-            }
-
-        }
-    }
-
-    //facebook login 🧔🏻
-    _fbAuth = () => {
-        // Attempt a login using the Facebook login dialog asking for default permissions and email.
-        LoginManager.logInWithPermissions(['public_profile', 'email']).then(
-            (result) => {
-                if (result.isCancelled) {
-                } else {
-                    const responseInfoCallback = async (error, result) => {
-                        if (error) {
-                            Toast.show('Error fetching data: ' + error.toString(), {
-                                duration: 3000,
-                                position: Toast.positions.CENTER,
-                                shadow: true,
-                                animation: true,
-                                hideOnPress: true,
-                                delay: 0,
-                            })
-                        } else {
-                            logfunction("Facebook response ", result)
-                            let email = result.email ? result.email : result.id;
-                            let image = result.picture ? result.picture.data.url : '';
-                            let sendData = new FormData();
-                            sendData.append("email", email)
-                            sendData.append("password", result.id)
-                            sendData.append("creation", 'F')
-                            sendData.append('firebase_token', props.FCM_TOKEN)
-
-                            setData({
-                                ...formData,
-                                loading: true
-                            });
-
-                            //login to our server 🧛🏻‍♀️
-                            try {
-                                getApi.postData(
-                                    'user/socialLogin',
-                                    sendData,
-                                ).then((response => {
-                                    logfunction("Social RESPONSE ", response)
-                                    if (response.status == 1) {
-                                        logfunction("RESPONSE ", 'Success')
-                                        setData({
-                                            ...formData,
-                                            email: null,
-                                            password: null,
-                                            loading: false
-                                        });
-                                        props.doLogin(response, navTo);
-                                    }
-                                    else {
-                                        //navigation part  😎
-                                        if (response.new == 1) {
-                                            props.navigation.navigate("SocialRegisterScreen", { s_email: email, s_socialID: result.id, s_image: image, s_firstName: result.first_name ? result.first_name : '', s_lastName: result.last_name ? result.last_name : '', s_creation: 'F' });
-                                        }
-                                        else {
-                                            setData({
-                                                ...formData,
-                                                type: 'error',
-                                                message: response.message,
-                                                loading: false
-                                            });
-                                            setTimeout(() => {
-                                                setData({
-                                                    ...formData,
-                                                    message: null,
-                                                    loading: false
-                                                })
-                                            }, 3000);
-                                        }
-
-                                    }
-                                }));
-                            } catch (error) {
-                                logfunction("Error", error)
-                                setData({
-                                    ...formData,
-                                    loading: false
-                                });
-                            }
-
-                        }
-                    }
-                    // Create a graph request asking for user email and names with a callback to handle the response.
-                    const infoRequest = new GraphRequest('/me', {
-                        parameters: {
-                            fields: {
-                                string: 'email,name,first_name,last_name,picture,gender',
-                            }
-                        }
-                    },
-                        responseInfoCallback
-                    );
-                    // Start the graph request.
-                    new GraphRequestManager().addRequest(infoRequest).start()
-                }
-            },
-            function (error) {
-                alert('Login fail with error: ' + error);
-            }
-        );
-    }
-
-
-    //google sigin
-    _googleAuth = async () => {
-        try {
-            const userInfo = await GoogleSignin.signIn();
-            logfunction("Google response ", userInfo)
-
-            if (userInfo.idToken != '') {
-
-                let email = userInfo.user.email;
-                let image = userInfo.user.photo ? userInfo.user.photo : '';
-                let sendData = new FormData();
-                sendData.append("email", email)
-                sendData.append("password", userInfo.user.id)
-                sendData.append("creation", 'G')
-                sendData.append('firebase_token', props.FCM_TOKEN)
-                setData({
-                    ...formData,
-                    loading: true
-                });
-
-                //login to our server 🧛🏻‍♀️
-                try {
-                    getApi.postData(
-                        'user/socialLogin',
-                        sendData,
-                    ).then((response => {
-                        logfunction("Social RESPONSE ", response)
-                        if (response.status == 1) {
-                            logfunction("RESPONSE ", 'Success')
-                            setData({
-                                ...formData,
-                                email: null,
-                                password: null,
-                                loading: false
-                            });
-                            props.doLogin(response, navTo);
-                        }
-                        else {
-                            //navigation part  😎
-                            if (response.new == 1) {
-                                props.navigation.navigate("SocialRegisterScreen", { s_email: email, s_socialID: userInfo.user.id, s_image: image, s_firstName: userInfo.user.name, s_lastName: '', s_creation: 'G' });
-                            }
-                            else {
-                                setData({
-                                    ...formData,
-                                    type: 'error',
-                                    message: response.message,
-                                    loading: false
-                                });
-                                setTimeout(() => {
-                                    setData({
-                                        ...formData,
-                                        message: null,
-                                        loading: false
-                                    })
-                                }, 3000);
-                            }
-
-                        }
-                    }));
-                } catch (error) {
-                    logfunction("Error", error)
+                const response = await getApi.postData('user/login', sendData);
+                logfunction("RESPONSE ", response);
+                
+                if (response.status === 1) {
                     setData({
                         ...formData,
+                        email: null,
+                        password: null,
                         loading: false
                     });
-                }
-
-                //  this.setState({
-                // socialName: userInfo.user.name,
-                // socialEmail: userInfo.user.email,
-                // creation_mode: 'G',
-                // social_link: userInfo.user.photo,
-                //  });
-                // const data = new FormData()
-                // data.append("email", userInfo.user.name)
-                // data.append("name", userInfo.user.email)
-                // data.append("fcm_key", this.state.fcmToken)
-                // this.props.socialLogin(data, this.state.returnTo, this.state.stringReturn);
-            }
-        } catch (error) {
-            logfunction("Errors ", error)
-        }
-    }
-
-    const verifyOTP = async (otp) => {
-        setOTPLoading(true)
-        try {
-            await confirm.confirm(otp);
-            let sendData = new FormData();
-            sendData.append('mobileNumber', mobileNumber)
-            getApi.postData(
-                'user/loginUsingMobile',
-                sendData,
-            ).then((response => {
-                setOTPLoading(false)
-
-                if (response.status == 1) {
                     props.doLogin(response, navTo);
-                }
-                else {
+                } else {
                     setData({
                         ...formData,
                         type: 'error',
@@ -455,40 +152,304 @@ function LoginScreen(props) {
                             ...formData,
                             message: null,
                             loading: false
-                        })
+                        });
                     }, 3000);
                 }
-            }));
-        } catch (error) {
+            } catch (error) {
+                logfunction("Error", error);
+                setData({
+                    ...formData,
+                    loading: false
+                });
+            }
+        }
+    };
+
+    const validateMobile = () => {
+        setData({ ...formData, mobileSubmitted: true });
+        const newErrors = { ...errors };
+
+        if (!isValidMobile(mobileNumber).success) {
+            newErrors.invalidmobileNumber = isValidMobile(mobileNumber).message;
+            setErrors(newErrors);
+            return false;
         }
 
-    }
+        return true;
+    };
+
+    const sendOtp = async () => {
+        if (validateMobile()) {
+            setData({
+                ...formData,
+                loading: true
+            });
+
+            const sendData = new FormData();
+            sendData.append('mobileNumber', mobileNumber);
+            sendData.append('firebase_token', props.FCM_TOKEN);
+
+            try {
+                const response = await getApi.postData('user/checkcustomer', sendData);
+                logfunction("RESPONSE ", response);
+                
+                if (response.status === 1) {
+                    const confirmation = await auth().signInWithPhoneNumber(countryCode + mobileNumber);
+                    setConfirm(confirmation);
+                    setData({
+                        ...formData,
+                        loading: false,
+                        verificationView: true
+                    });
+                } else {
+                    setData({
+                        ...formData,
+                        type: 'error',
+                        message: 'Customer not found',
+                        loading: false
+                    });
+                    setTimeout(() => {
+                        setData({
+                            ...formData,
+                            message: null,
+                            loading: false
+                        });
+                        props.navigation.push("RegisterScreen");
+                    }, 1000);
+                }
+            } catch (error) {
+                logfunction("Error", error);
+                setData({
+                    ...formData,
+                    loading: false
+                });
+            }
+        }
+    };
+
+    // Facebook authentication
+    const _fbAuth = async () => {
+        try {
+            const result = await LoginManager.logInWithPermissions(['public_profile', 'email']);
+            
+            if (result.isCancelled) {
+                return;
+            }
+
+            // Get the access token
+            const data = await AccessToken.getCurrentAccessToken();
+            
+            if (!data) {
+                throw new Error('Something went wrong obtaining access token');
+            }
+
+            // Create a graph request to get user data
+            const responseInfoCallback = (error, result) => {
+                if (error) {
+                    Toast.show('Error fetching data: ' + error.toString(), {
+                        duration: 3000,
+                        position: Toast.positions.CENTER,
+                        shadow: true,
+                        animation: true,
+                        hideOnPress: true,
+                        delay: 0,
+                    });
+                } else {
+                    handleSocialLogin(result, 'F');
+                }
+            };
+
+            const infoRequest = new GraphRequest(
+                '/me',
+                {
+                    parameters: {
+                        fields: {
+                            string: 'email,name,first_name,last_name,picture,gender',
+                        }
+                    }
+                },
+                responseInfoCallback
+            );
+
+            new GraphRequestManager().addRequest(infoRequest).start();
+        } catch (error) {
+            console.log('Facebook login error:', error);
+            Toast.show('Facebook login failed', {
+                duration: 3000,
+                position: Toast.positions.CENTER,
+            });
+        }
+    };
+
+    // Google authentication
+    const _googleAuth = async () => {
+        try {
+            await GoogleSignin.hasPlayServices();
+            const userInfo = await GoogleSignin.signIn();
+            logfunction("Google response ", userInfo);
+
+            if (userInfo.idToken) {
+                const userData = {
+                    email: userInfo.user.email,
+                    id: userInfo.user.id,
+                    name: userInfo.user.name,
+                    first_name: userInfo.user.givenName || userInfo.user.name,
+                    last_name: userInfo.user.familyName || '',
+                    picture: { data: { url: userInfo.user.photo || '' } }
+                };
+                
+                handleSocialLogin(userData, 'G');
+            }
+        } catch (error) {
+            logfunction("Google login error: ", error);
+            if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+                // User cancelled the login flow
+            } else if (error.code === statusCodes.IN_PROGRESS) {
+                // Operation is in progress already
+            } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+                // Play services not available or outdated
+                Toast.show('Google Play Services not available', {
+                    duration: 3000,
+                    position: Toast.positions.CENTER,
+                });
+            } else {
+                Toast.show('Google login failed', {
+                    duration: 3000,
+                    position: Toast.positions.CENTER,
+                });
+            }
+        }
+    };
+
+    // Common function to handle social login
+    const handleSocialLogin = async (userData, creation) => {
+        const email = userData.email || userData.id;
+        const image = userData.picture ? userData.picture.data.url : '';
+        
+        const sendData = new FormData();
+        sendData.append("email", email);
+        sendData.append("password", userData.id);
+        sendData.append("creation", creation);
+        sendData.append('firebase_token', props.FCM_TOKEN);
+
+        setData({
+            ...formData,
+            loading: true
+        });
+
+        try {
+            const response = await getApi.postData('user/socialLogin', sendData);
+            logfunction("Social RESPONSE ", response);
+            
+            if (response.status === 1) {
+                setData({
+                    ...formData,
+                    email: null,
+                    password: null,
+                    loading: false
+                });
+                props.doLogin(response, navTo);
+            } else {
+                if (response.new === 1) {
+                    props.navigation.navigate("SocialRegisterScreen", {
+                        s_email: email,
+                        s_socialID: userData.id,
+                        s_image: image,
+                        s_firstName: userData.first_name || '',
+                        s_lastName: userData.last_name || '',
+                        s_creation: creation
+                    });
+                } else {
+                    setData({
+                        ...formData,
+                        type: 'error',
+                        message: response.message,
+                        loading: false
+                    });
+                    setTimeout(() => {
+                        setData({
+                            ...formData,
+                            message: null,
+                            loading: false
+                        });
+                    }, 3000);
+                }
+            }
+        } catch (error) {
+            logfunction("Error", error);
+            setData({
+                ...formData,
+                loading: false
+            });
+        }
+    };
+
+    const verifyOTP = async (otp) => {
+        if (!otp && !otpp) return;
+        
+        setOTPLoading(true);
+        try {
+            await confirm.confirm(otp || otpp);
+            const sendData = new FormData();
+            sendData.append('mobileNumber', mobileNumber);
+            
+            const response = await getApi.postData('user/loginUsingMobile', sendData);
+            setOTPLoading(false);
+
+            if (response.status === 1) {
+                props.doLogin(response, navTo);
+            } else {
+                setData({
+                    ...formData,
+                    type: 'error',
+                    message: response.message,
+                    loading: false
+                });
+                setTimeout(() => {
+                    setData({
+                        ...formData,
+                        message: null,
+                        loading: false
+                    });
+                }, 3000);
+            }
+        } catch (error) {
+            setOTPLoading(false);
+            setData({
+                ...formData,
+                type: 'error',
+                message: 'Invalid OTP',
+                loading: false
+            });
+        }
+    };
 
     const { strings } = props;
 
     return (
         <OtrixContainer>
-
             {/* Header */}
             <OtrixHeader >
-                <TouchableOpacity style={[GlobalStyles.headerLeft, { flex: 0.10 }]} onPress={() => props.navigation.push('MainScreen')}>
+                <TouchableOpacity 
+                    style={[GlobalStyles.headerLeft, { flex: 0.10 }]} 
+                    onPress={() => props.navigation.push('MainScreen')}
+                >
                     <OtirxBackButton />
                 </TouchableOpacity>
                 <View style={[GlobalStyles.headerCenter, { flex: 0.90, justifyContent: 'center', alignContent: 'flex-start' }]}>
                     <View style={GlobalStyles.authHeader}>
-                        <Text style={[GlobalStyles.authtabbarText, { lineHeight: hp('5%') }]}>{strings.login.welcome}</Text>
-                        {/* <Text style={GlobalStyles.authSubText}>Login with Mobile</Text> */}
+                        <Text style={[GlobalStyles.authtabbarText, { lineHeight: hp('5%') }]}>
+                            {strings.login.welcome}
+                        </Text>
                     </View>
                 </View>
             </OtrixHeader>
             <OtrixDivider size={'md'} />
 
-            {/* Content Start from here */}
-            {
-                !verificationView ? <OtrixContent>
-                    {/* Login with OTP Start from here */}
-
-
+            {/* Content */}
+            {!verificationView ? (
+                <OtrixContent>
+                    {/* Mobile Login Section */}
                     <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
                         <TouchableOpacity
                             onPress={() => setShow(true)}
@@ -508,32 +469,39 @@ function LoginScreen(props) {
                                 {countryCode}
                             </Text>
                         </TouchableOpacity>
-                        <FormControl style={{ backgroundColor: Colors().white, flex: 0.80 }} isRequired isInvalid={submited && 'mobileNumber' in errors || 'invalidmobileNumber' in errors}>
-                            <Input variant="outline" keyboardType="number-pad" placeholder={strings.commoninput.placeholder_phone} style={GlobalStyles.textInputStyle}
-                                onChangeText={(value) => { setMobile(value), delete errors.mobileNumber, delete errors.invalidmobileNumber }}
+                        <FormControl 
+                            style={{ backgroundColor: Colors().white, flex: 0.80 }} 
+                            isRequired 
+                            isInvalid={submited && ('mobileNumber' in errors || 'invalidmobileNumber' in errors)}
+                        >
+                            <Input 
+                                variant="outline" 
+                                keyboardType="number-pad" 
+                                placeholder={strings.commoninput.placeholder_phone} 
+                                style={GlobalStyles.textInputStyle}
+                                onChangeText={(value) => { 
+                                    setMobile(value);
+                                    const newErrors = { ...errors };
+                                    delete newErrors.mobileNumber;
+                                    delete newErrors.invalidmobileNumber;
+                                    setErrors(newErrors);
+                                }}
                             />
-
-                            {
-                                'invalidmobileNumber' in errors == false && 'mobileNumber' in errors && <FormControl.ErrorMessage
-                                    leftIcon={<InfoOutlineIcon size="xs" />}
-                                >
+                            {'mobileNumber' in errors && (
+                                <FormControl.ErrorMessage leftIcon={<InfoOutlineIcon size="xs" />}>
                                     {errors.mobileNumber}
                                 </FormControl.ErrorMessage>
-                            }
-                            {
-                                'invalidmobileNumber' in errors && <FormControl.ErrorMessage
-                                    leftIcon={<InfoOutlineIcon size="xs" />}
-                                >
+                            )}
+                            {'invalidmobileNumber' in errors && (
+                                <FormControl.ErrorMessage leftIcon={<InfoOutlineIcon size="xs" />}>
                                     {errors.invalidmobileNumber}
                                 </FormControl.ErrorMessage>
-                            }
-
+                            )}
                         </FormControl>
                     </View>
 
                     <CountryPicker
                         show={show}
-                        // when picker button press you will get the country object with dial code
                         pickerButtonOnPress={(item) => {
                             setCountryCode(item.dial_code);
                             setShow(false);
@@ -547,71 +515,94 @@ function LoginScreen(props) {
                         bg={Colors().themeColor}
                         style={GlobalStyles.button}
                         isLoading={loading}
-                        onPress={() => sendOtp()}
+                        onPress={sendOtp}
                     >
                         <Text style={GlobalStyles.buttonText}>{strings.login.button_login}</Text>
                     </Button>
                     <OtrixDivider size={'md'} />
 
-                    <OtrixDivider size={'md'} />
-
-                    <View
-                        style={styles.divider}>
-                        <View
-                            style={styles.dividerLine}
-                        />
-                        <Text
-                            style={styles.dividerTxt}>
-                            OR
-                        </Text>
+                    {/* Divider */}
+                    <View style={styles.divider}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerTxt}>OR</Text>
                     </View>
 
-
-
-                    {/* Login Form Start from here */}
+                    {/* Email Login Form */}
                     <Text style={styles.authSubText}>{strings.login.title}</Text>
 
-                    <FormControl isRequired style={{ backgroundColor: Colors().white }} isInvalid={submited && 'email' in errors || 'invalidEmail' in errors}>
-                        <Input variant="outline" placeholder={strings.commoninput.placeholder_email} style={[GlobalStyles.textInputStyle]}
+                    <FormControl 
+                        isRequired 
+                        style={{ backgroundColor: Colors().white }} 
+                        isInvalid={submited && ('email' in errors || 'invalidEmail' in errors)}
+                    >
+                        <Input 
+                            variant="outline" 
+                            placeholder={strings.commoninput.placeholder_email} 
+                            style={[GlobalStyles.textInputStyle]}
                             value={email}
-                            onChangeText={(value) => { setData({ ...formData, email: value }), delete errors.email, delete errors.invalidEmail }}
+                            onChangeText={(value) => { 
+                                setData({ ...formData, email: value });
+                                const newErrors = { ...errors };
+                                delete newErrors.email;
+                                delete newErrors.invalidEmail;
+                                setErrors(newErrors);
+                            }}
                         />
-                        {
-                            'invalidEmail' in errors == false && 'email' in errors && <FormControl.ErrorMessage
-                                leftIcon={<InfoOutlineIcon size="xs" />}
-                            >
+                        {'email' in errors && (
+                            <FormControl.ErrorMessage leftIcon={<InfoOutlineIcon size="xs" />}>
                                 {errors.email}
                             </FormControl.ErrorMessage>
-                        }
-                        {
-                            'invalidEmail' in errors && <FormControl.ErrorMessage
-                                leftIcon={<InfoOutlineIcon size="xs" />}
-                            >
+                        )}
+                        {'invalidEmail' in errors && (
+                            <FormControl.ErrorMessage leftIcon={<InfoOutlineIcon size="xs" />}>
                                 {errors.invalidEmail}
                             </FormControl.ErrorMessage>
-                        }
+                        )}
                     </FormControl>
+
                     <OtrixDivider size={'sm'} />
-                    <FormControl isRequired style={{ backgroundColor: Colors().white }} isInvalid={submited && 'password' in errors}>
-                        <Input variant="outline" placeholder={strings.commoninput.placeholder_password} style={[GlobalStyles.textInputStyle]}
-                            onChangeText={(value) => { setData({ ...formData, submited: false, password: value }), delete errors.password }}
+
+                    <FormControl 
+                        isRequired 
+                        style={{ backgroundColor: Colors().white }} 
+                        isInvalid={submited && 'password' in errors}
+                    >
+                        <Input 
+                            variant="outline" 
+                            placeholder={strings.commoninput.placeholder_password} 
+                            style={[GlobalStyles.textInputStyle]}
+                            onChangeText={(value) => { 
+                                setData({ ...formData, submited: false, password: value });
+                                const newErrors = { ...errors };
+                                delete newErrors.password;
+                                setErrors(newErrors);
+                            }}
                             secureTextEntry={state.secureEntry}
                             value={password}
                             InputRightElement={
-                                <TouchableOpacity onPress={() => setDatapassword({ ...state, secureEntry: !state.secureEntry })} style={[{ marginRight: wp('3%'), padding: 3 }]}>
-                                    <Icon name={state.secureEntry == true ? "eye" : "eye-off"} size={18} color={Colors().secondry_text_color} />
+                                <TouchableOpacity 
+                                    onPress={() => setDatapassword({ ...state, secureEntry: !state.secureEntry })} 
+                                    style={[{ marginRight: wp('3%'), padding: 3 }]}
+                                >
+                                    <Icon 
+                                        name={state.secureEntry ? "eye" : "eye-off"} 
+                                        size={18} 
+                                        color={Colors().secondry_text_color} 
+                                    />
                                 </TouchableOpacity>
                             }
                         />
-                        <FormControl.ErrorMessage
-                            leftIcon={<InfoOutlineIcon size="xs" />}
-                        >
+                        <FormControl.ErrorMessage leftIcon={<InfoOutlineIcon size="xs" />}>
                             {errors.password}
                         </FormControl.ErrorMessage>
                     </FormControl>
+
                     <TouchableOpacity onPress={() => props.navigation.navigate('ForgotPasswordScreen')}>
-                        <Text style={styles.forgotPassword}>Forgot Password?</Text>
+                        <Text style={[styles.forgotPassword, { color: mode === 'dark' ? '#000' : Colors().link_color }]}>
+                            Forgot Password?
+                        </Text>
                     </TouchableOpacity>
+
                     <OtrixDivider size={'md'} />
                     <Button
                         size="md"
@@ -619,14 +610,16 @@ function LoginScreen(props) {
                         bg={Colors().themeColor}
                         style={GlobalStyles.button}
                         isLoading={loading}
-                        onPress={() => login()}
+                        onPress={login}
                     >
                         <Text style={GlobalStyles.buttonText}>{strings.login.button_login}</Text>
                     </Button>
                     <OtrixDivider size={'md'} />
 
                     <View style={styles.registerView}>
-                        <Text style={styles.registerTxt}>{strings.login.label_registration_info} </Text>
+                        <Text style={[styles.registerTxt, { color: mode === 'dark' ? '#000' : Colors().secondry_text_color }]}>
+                            {strings.login.label_registration_info}
+                        </Text>
                         <TouchableOpacity onPress={() => props.navigation.navigate('RegisterScreen')}>
                             <Text style={styles.signupTxt}> {strings.login.button_registration} </Text>
                         </TouchableOpacity>
@@ -636,23 +629,22 @@ function LoginScreen(props) {
                     {/* Social Container Component */}
                     <OtrixSocialContainer facebookLogin={_fbAuth} googleLogin={_googleAuth} />
 
-                </OtrixContent> : <OtrixContent>
-
+                </OtrixContent>
+            ) : (
+                <OtrixContent>
                     <Text style={styles.otpTitle}>Enter OTP</Text>
                     <OtrixDivider size="sm" />
                     <OTPInputView
                         style={{ width: '100%', height: 100, backgroundColor: 'white', paddingHorizontal: 20 }}
                         pinCount={6}
-
-                        // code={this.state.code} //You can supply this prop or not. The component will be used as a controlled / uncontrolled component respectively.
                         autoFocusOnLoad={true}
                         codeInputFieldStyle={styles.underlineStyleBase}
                         codeInputHighlightStyle={styles.underlineStyleHighLighted}
                         placeholderTextColor={Colors().black_text}
-                        onCodeFilled={(code => {
-                            setOTP(code)
+                        onCodeFilled={(code) => {
+                            setOTP(code);
                             verifyOTP(code);
-                        })}
+                        }}
                     />
                     <OtrixDivider size={'md'} />
                     <Button
@@ -661,31 +653,25 @@ function LoginScreen(props) {
                         bg={Colors().themeColor}
                         style={GlobalStyles.button}
                         isLoading={otpLoading}
-                        onPress={() => verifyOTP()}
+                        onPress={() => verifyOTP(otpp)}
                     >
                         <Text style={GlobalStyles.buttonText}>Verify OTP</Text>
                     </Button>
-                    {
-                        message != null && <OtrixAlert type={type} message={message} />
-                    }
                 </OtrixContent>
-            }
+            )}
 
-            {
-                message != null && <OtrixAlert type={type} message={message} />
-            }
-
-        </OtrixContainer >
-    )
-
+            {message && <OtrixAlert type={type} message={message} />}
+        </OtrixContainer>
+    );
 }
 
 function mapStateToProps(state) {
     return {
         strings: state.mainScreenInit.strings,
         FCM_TOKEN: state.mainScreenInit.firebaseToken
-    }
+    };
 }
+
 const mapDispatchToProps = dispatch => (
     bindActionCreators({
         doLogin
@@ -694,13 +680,11 @@ const mapDispatchToProps = dispatch => (
 
 export default connect(mapStateToProps, mapDispatchToProps)(LoginScreen);
 
-const mode = AsyncStorage.getItem('mode');
 const styles = StyleSheet.create({
     forgotPassword: {
         fontSize: wp('3%'),
         textAlign: 'right',
         fontFamily: Fonts.Font_Reguler,
-        color: mode === 'dark' ? '#000' : Colors().link_color,
         padding: 5
     },
     registerView: {
@@ -712,7 +696,6 @@ const styles = StyleSheet.create({
         fontSize: wp('3.5%'),
         textAlign: 'center',
         fontFamily: Fonts.Font_Reguler,
-        color: mode === 'dark' ? '#000' : Colors().secondry_text_color
     },
     signupTxt: {
         fontSize: wp('3.5%'),

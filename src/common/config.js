@@ -12,7 +12,7 @@ export const AppStyle =
     }
 }
 export const currency = "₹";
-export const logo = require('../assets/images/logo.png')
+export const logo = require('../assets/images/logo.jpg')
 export const splashlogo = require('../assets/images/splash_logo.jpg')
 
 
