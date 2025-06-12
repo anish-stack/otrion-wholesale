@@ -8,37 +8,87 @@ import Fonts from '@helpers/Fonts';
 import { logfunction } from "@helpers/FunctionHelper";
 
 function HomeCategory(props) {
+    // Check if data exists and is an array
+    const hasData = props.data && Array.isArray(props.data) && props.data.length > 0;
+
+    // Render empty state when no data
+    const renderEmptyState = () => (
+        <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+                {props.strings?.homepage?.no_categories || 'No categories available'}
+            </Text>
+        </View>
+    );
 
     return (
         <View>
-            <View style={styles.catHeading} >
-                <Text style={GlobalStyles.boxHeading}>{props.strings.homepage.label_category}</Text>
-                <TouchableOpacity style={{ flex: 0.50 }} onPress={() => props.navigation.navigate('CategoryScreen')}>
-                    <Text style={GlobalStyles.viewAll}>{props.strings.homepage.viewall}</Text>
-                </TouchableOpacity>
+            <View style={styles.catHeading}>
+                <Text style={GlobalStyles.boxHeading}>
+                    {props.strings?.homepage?.label_category || 'Categories'}
+                </Text>
+                {hasData && (
+                    <TouchableOpacity 
+                        style={{ flex: 0.50 }} 
+                        onPress={() => props.navigation?.navigate('CategoryScreen')}
+                    >
+                        <Text style={GlobalStyles.viewAll}>
+                            {props.strings?.homepage?.viewall || 'View All'}
+                        </Text>
+                    </TouchableOpacity>
+                )}
             </View>
             <OtrixDivider size={'sm'} />
-            <FlatList
-                style={{ padding: wp('1%') }}
-                data={props.data}
-                contentContainerStyle={{ paddingRight: wp('3%') }}
-                horizontal={true}
-                showsHorizontalScrollIndicator={false}
-                onEndReachedThreshold={0.7}
-                keyExtractor={(contact, index) => String(index)}
-                renderItem={({ item, index }) =>
-                    <TouchableOpacity style={styles.catBox} key={item.id} onPress={() => props.navigation.navigate('ProductListScreen', { type: 'category', id: item.category_id, childerns: item.children != undefined ? item.children : [], title: item.category_description.name })}>
-                        <View style={styles.imageContainer}>
-                            <Image source={{ uri: ASSETS_DIR + 'category/' + item.image }} style={styles.imageView} resizeMode='cover'
-                            ></Image>
-                        </View>
-                        <Text numberOfLines={2} style={styles.catName}>{item.category_description.name}</Text>
-                    </TouchableOpacity>
-                }>
-            </FlatList >
-        </View >
-
-    )
+            
+            {hasData ? (
+                <FlatList
+                    style={{ padding: wp('1%') }}
+                    data={props.data}
+                    contentContainerStyle={{ paddingRight: wp('3%') }}
+                    horizontal={true}
+                    showsHorizontalScrollIndicator={false}
+                    onEndReachedThreshold={0.7}
+                    keyExtractor={(contact, index) => String(index)}
+                    renderItem={({ item, index }) => (
+                        <TouchableOpacity 
+                            style={styles.catBox} 
+                            key={item.id} 
+                            onPress={() => {
+                                try {
+                                    props.navigation?.navigate('ProductListScreen', { 
+                                        type: 'category', 
+                                        id: item.category_id, 
+                                        childerns: item.children !== undefined ? item.children : [], 
+                                        title: item.category_description?.name || 'Category'
+                                    });
+                                } catch (error) {
+                                    logfunction('Navigation Error: ', error);
+                                }
+                            }}
+                        >
+                            <View style={styles.imageContainer}>
+                                <Image 
+                                    source={{ 
+                                        uri: item.image ? ASSETS_DIR + 'category/' + item.image : null 
+                                    }} 
+                                    style={styles.imageView} 
+                                    resizeMode='cover'
+                                    onError={(error) => {
+                                        logfunction('Image Load Error: ', error);
+                                    }}
+                                    // defaultSource={require('@assets/placeholder-image.png')} // Add a placeholder image
+                                />
+                            </View>
+                            <Text numberOfLines={2} style={styles.catName}>
+                                {item.category_description?.name || 'Unknown Category'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+                />
+            ) : (
+                renderEmptyState()
+            )}
+        </View>
+    );
 }
 
 export default HomeCategoryView = React.memo(HomeCategory);
@@ -71,6 +121,18 @@ const styles = StyleSheet.create({
         fontFamily: Fonts.Font_Reguler,
         textAlign: 'center',
         color: Colors().text_color
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: hp('5%'),
+        paddingHorizontal: wp('5%'),
+    },
+    emptyText: {
+        fontSize: wp('3.5%'),
+        fontFamily: Fonts.Font_Reguler,
+        textAlign: 'center',
+        color: Colors().text_color,
+        opacity: 0.7,
     }
-
 });

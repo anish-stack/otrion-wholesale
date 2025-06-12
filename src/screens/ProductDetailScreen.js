@@ -38,7 +38,7 @@ const windowHeight = Dimensions.get('window').height;
 
 function ProductDetailScreen(props) {
     const scrollRight = useRef();
-
+// console.log("CURRENCY",CURRENCY)
     const [state, setState] = React.useState({ loading: true, productPrice: 0, productCount: 1, productDetail: null, value: null, isFocus: false, productDescription: null, productSpecial: null, productAttributes: null, productImages: null, productRelated: null, productOption: [], fetchCart: false, productReview: null, optionColor: 0, optionSelect: 0, optionSize: 0, showZoom: false, zoomImages: [], message: null, type: 'error', optionColorPrice: 0, optionSelectPrice: 0, optionSizePrice: 0, });
     const { loading, productDetail, productOption, productPrice, fetchCart, productReview, productImages, productAttributes, productDescription, isFocus, productRelated, productSpecial, optionColor, optionSelect, optionSize, productCount, zoomImages, showZoom, msg, optionColorPrice, optionSelectPrice, optionSizePrice, message, type } = state;
 

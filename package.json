@@ -38,7 +38,6 @@
     "react-native-dotenv": "^3.4.2",
     "react-native-element-dropdown": "^2.3.1",
     "react-native-fast-image": "^8.6.3",
-    "react-native-fbsdk": "^3.0.0",
     "react-native-gesture-handler": "^2.8.0",
     "react-native-image-picker": "^4.10.0",
     "react-native-image-slider-box": "^2.0.7",

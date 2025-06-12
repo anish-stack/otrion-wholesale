@@ -3,7 +3,7 @@ import Toast from 'react-native-root-toast';
 import AsyncStorage from '@react-native-community/async-storage'
 
 export function chatSupport() {
-    const link = 'whatsapp://send?text=Hello Otrixweb&phone=9898'
+    const link = 'whatsapp://send?text=Hello Orion Wholesale&phone=9898'
     Linking.canOpenURL(link)
         .then(supported => {
             if (!supported) {

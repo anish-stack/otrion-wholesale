@@ -37,7 +37,7 @@ function SocialContainer(props) {
                     }]}
                 />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.imageContainer} onPress={() => props.facebookLogin()}>
+            {/* <TouchableOpacity style={styles.imageContainer} onPress={() => props.facebookLogin()}>
                 <Image
                     square
                     source={facebook}
@@ -47,7 +47,7 @@ function SocialContainer(props) {
 
                     }]}
                 />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             {/* <TouchableOpacity style={styles.imageContainer}>
                 <Image
                     square

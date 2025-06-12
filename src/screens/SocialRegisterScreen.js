@@ -148,7 +148,7 @@ function SocialRegisterScreen(props) {
             {/* Header */}
             <OtrixHeader customStyles={GlobalStyles.authHeader}>
                 <Text style={[GlobalStyles.authtabbarText]}>Register Account</Text>
-                <Text style={GlobalStyles.authSubText}>Create account to continue shopping with otrixweb</Text>
+                <Text style={GlobalStyles.authSubText}>Create account to continue shopping with Orion Wholesale</Text>
             </OtrixHeader>
             <OtrixDivider size={'md'} />
 

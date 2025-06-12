@@ -4,19 +4,22 @@ import { Provider } from 'react-redux';
 import { NativeBaseProvider } from "native-base"
 import AppNavigator from "./AppNavigator";
 import store from './redux/store/store';
+import ErrorBoundary from "./ErrorBoundary";
 
-LogBox.ignoreLogs(['Warning: ...']); // Ignore log notification by message
+LogBox.ignoreLogs(['Warning: ...']);
 LogBox.ignoreAllLogs()
 
 
 App = () => {
-    return (
-        <Provider store={store}>
-            <NativeBaseProvider>
-                <AppNavigator />
-            </NativeBaseProvider>
-        </Provider>
-    )
+  return (
+    <ErrorBoundary>
+      <Provider store={store}>
+        <NativeBaseProvider>
+          <AppNavigator />
+        </NativeBaseProvider>
+      </Provider>
+    </ErrorBoundary>
+  )
 }
 
 export default App

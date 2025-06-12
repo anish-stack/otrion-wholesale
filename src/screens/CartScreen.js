@@ -301,7 +301,7 @@ function CheckoutScreen(props) {
                 keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}>
                 {!noRecord && !loading && <View style={styles.checkoutView}>
                     <View style={styles.couponInput}>
-                        <Input variant="outline" placeholder={strings.cart.coupon_code + ' (use otrixweb)'} style={[GlobalStyles.textInputStyle, styles.inputStyle]}
+                        <Input variant="outline" placeholder={strings.cart.coupon_code + ' (use Orion Wholesale)'} style={[GlobalStyles.textInputStyle, styles.inputStyle]}
                             onChangeText={(couponCode) => setState({ ...state, couponCode })}
                             onSubmitEditing={applyCouponCode}
                             InputRightElement={

@@ -19,7 +19,6 @@ import { bindActionCreators } from 'redux';
 import { doLogin } from '@actions';
 import getApi from "@apis/getApi";
 import Toast from 'react-native-root-toast';
-import { LoginManager, AccessToken, GraphRequest, GraphRequestManager } from 'react-native-fbsdk';
 import auth from '@react-native-firebase/auth';
 import { firebase } from '@react-native-firebase/app';
 import { CountryPicker } from "react-native-country-codes-picker";
@@ -33,7 +32,9 @@ import AsyncStorage from "@react-native-community/async-storage";
 
 // Configure Google Sign-In
 GoogleSignin.configure({
-    webClientId: '239412184257-4boc3ro714hnou9a04a7fvlbpvbbpg4v.apps.googleusercontent.com',
+    webClientId: '239412184257-0ff65ugeiganp26qu0q7j7b744cdumkt.apps.googleusercontent.com',
+      offlineAccess: true,  // if you want to get refresh token
+  forceCodeForRefreshToken: true,
     scopes: ['profile', 'email']
 });
 
@@ -227,99 +228,61 @@ function LoginScreen(props) {
         }
     };
 
-    // Facebook authentication
-    const _fbAuth = async () => {
-        try {
-            const result = await LoginManager.logInWithPermissions(['public_profile', 'email']);
-            
-            if (result.isCancelled) {
-                return;
-            }
 
-            // Get the access token
-            const data = await AccessToken.getCurrentAccessToken();
-            
-            if (!data) {
-                throw new Error('Something went wrong obtaining access token');
-            }
 
-            // Create a graph request to get user data
-            const responseInfoCallback = (error, result) => {
-                if (error) {
-                    Toast.show('Error fetching data: ' + error.toString(), {
-                        duration: 3000,
-                        position: Toast.positions.CENTER,
-                        shadow: true,
-                        animation: true,
-                        hideOnPress: true,
-                        delay: 0,
-                    });
-                } else {
-                    handleSocialLogin(result, 'F');
-                }
-            };
 
-            const infoRequest = new GraphRequest(
-                '/me',
-                {
-                    parameters: {
-                        fields: {
-                            string: 'email,name,first_name,last_name,picture,gender',
-                        }
-                    }
-                },
-                responseInfoCallback
-            );
+const _googleAuth = async () => {
+  try {
+    console.log("[GoogleAuth] Starting Google Sign-In flow");
 
-            new GraphRequestManager().addRequest(infoRequest).start();
-        } catch (error) {
-            console.log('Facebook login error:', error);
-            Toast.show('Facebook login failed', {
-                duration: 3000,
-                position: Toast.positions.CENTER,
-            });
-        }
-    };
+    const hasPlayServices = await GoogleSignin.hasPlayServices();
+    console.log("[GoogleAuth] Google Play Services available:", hasPlayServices);
 
-    // Google authentication
-    const _googleAuth = async () => {
-        try {
-            await GoogleSignin.hasPlayServices();
-            const userInfo = await GoogleSignin.signIn();
-            logfunction("Google response ", userInfo);
+    const userInfo = await GoogleSignin.signIn();
+    console.log("[GoogleAuth] User info received:", JSON.stringify(userInfo, null, 2));
 
-            if (userInfo.idToken) {
-                const userData = {
-                    email: userInfo.user.email,
-                    id: userInfo.user.id,
-                    name: userInfo.user.name,
-                    first_name: userInfo.user.givenName || userInfo.user.name,
-                    last_name: userInfo.user.familyName || '',
-                    picture: { data: { url: userInfo.user.photo || '' } }
-                };
-                
-                handleSocialLogin(userData, 'G');
-            }
-        } catch (error) {
-            logfunction("Google login error: ", error);
-            if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-                // User cancelled the login flow
-            } else if (error.code === statusCodes.IN_PROGRESS) {
-                // Operation is in progress already
-            } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-                // Play services not available or outdated
-                Toast.show('Google Play Services not available', {
-                    duration: 3000,
-                    position: Toast.positions.CENTER,
-                });
-            } else {
-                Toast.show('Google login failed', {
-                    duration: 3000,
-                    position: Toast.positions.CENTER,
-                });
-            }
-        }
-    };
+    if (userInfo.idToken) {
+      console.log("[GoogleAuth] idToken found, preparing user data");
+
+      const userData = {
+        email: userInfo.user.email,
+        id: userInfo.user.id,
+        name: userInfo.user.name,
+        first_name: userInfo.user.givenName || userInfo.user.name,
+        last_name: userInfo.user.familyName || '',
+        picture: { data: { url: userInfo.user.photo || '' } }
+      };
+
+      console.log("[GoogleAuth] User data constructed:", JSON.stringify(userData, null, 2));
+      handleSocialLogin(userData, 'G');
+      console.log("[GoogleAuth] handleSocialLogin called");
+    } else {
+      console.warn("[GoogleAuth] idToken not found in userInfo:", JSON.stringify(userInfo));
+    }
+
+  } catch (error) {
+    console.error("[GoogleAuth] Error during Google Sign-In:", error);
+
+    if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+      console.log("[GoogleAuth] Sign-in cancelled by user");
+    } else if (error.code === statusCodes.IN_PROGRESS) {
+      console.log("[GoogleAuth] Sign-in already in progress");
+    } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+      console.log("[GoogleAuth] Google Play Services not available or outdated");
+      Toast.show('Google Play Services not available', {
+        duration: 3000,
+        position: Toast.positions.CENTER,
+      });
+    } else {
+      console.log("[GoogleAuth] Unknown error occurred during Google login");
+      Toast.show('Google login failed', {
+        duration: 3000,
+        position: Toast.positions.CENTER,
+      });
+    }
+  }
+};
+
 
     // Common function to handle social login
     const handleSocialLogin = async (userData, creation) => {
@@ -627,7 +590,7 @@ function LoginScreen(props) {
                     <OtrixDivider size={'md'} />
 
                     {/* Social Container Component */}
-                    <OtrixSocialContainer facebookLogin={_fbAuth} googleLogin={_googleAuth} />
+                    <OtrixSocialContainer  googleLogin={_googleAuth} />
 
                 </OtrixContent>
             ) : (

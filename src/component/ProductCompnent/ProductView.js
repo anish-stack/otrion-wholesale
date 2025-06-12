@@ -11,9 +11,11 @@ import moment from 'moment';
 import FastImage from 'react-native-fast-image'
 
 function ProductView(props) {
+    // console.log("props",props.navToDetail)
     const data = props.data;
     let off = null;
     let special = 0;
+ 
 
     if (data.special != null) {
         let startDate = moment(data.special.start_date, "DD/MM/YYYY");
