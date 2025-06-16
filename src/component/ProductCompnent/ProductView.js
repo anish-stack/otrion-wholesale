@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Text, Image, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, Text, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { GlobalStyles, Colors } from '@helpers'
 import { widthPercentageToDP as wp, heightPercentageToDP as hp } from 'react-native-responsive-screen';
 import Fonts from '@helpers/Fonts';
@@ -11,169 +11,353 @@ import moment from 'moment';
 import FastImage from 'react-native-fast-image'
 
 function ProductView(props) {
-    // console.log("props",props.navToDetail)
     const data = props.data;
-    let off = null;
-    let special = 0;
- 
+    const isLoading = props.isLoading || false;
+    
+    let discountPercentage = null;
+    let specialPrice = 0;
+    let hasDiscount = false;
 
-    if (data.special != null) {
+    // Calculate special pricing and discount
+    if (data?.special != null) {
         let startDate = moment(data.special.start_date, "DD/MM/YYYY");
         let endDate = moment(data.special.end_date, "DD/MM/YYYY");
         if (startDate <= moment(new Date(), "DD/MM/YYYY") && endDate >= moment(new Date(), "DD/MM/YYYY")) {
-            special = data.special.price;
-            off = calculateOffPercentage(data.price, data.special.price) + '% off';
+            specialPrice = data.special.price;
+            discountPercentage = calculateOffPercentage(data.price, data.special.price);
+            hasDiscount = true;
         }
     }
 
-    const wishlistArr = props.wishlistArray ? props.wishlistArray : null;
-    return (
-        <TouchableOpacity style={[styles.productBox]} onPress={() => props.navToDetail(data)}>
+    // Calculate MRP discount if no special price and MRP exists
+    if (!hasDiscount && data?.MRP && parseFloat(data.MRP) > parseFloat(data.price)) {
+        discountPercentage = calculateOffPercentage(data.MRP, data.price);
+        hasDiscount = true;
+    }
 
-            <View style={[styles.imageView, props.fromDynamic ? { width: wp('36.2%') } : null]}>
-                {/* <Image source={{ uri: data.image ? ASSETS_DIR + 'product/' + data.image : ASSETS_DIR + '/assets/img/default.png' }} style={styles.image}
-                ></Image> */}
+    const currentPrice = specialPrice || data?.price;
+    const mrpPrice = data?.MRP;
+    const wishlistArr = props.wishlistArray ? props.wishlistArray : [];
+    const isInWishlist = wishlistArr.includes(data?.id);
+
+    if (isLoading) {
+        return (
+            <View style={styles.loadingContainer}>
+                <View style={styles.loadingImageView}>
+                    <ActivityIndicator size="small" color={Colors().primary} />
+                </View>
+                <View style={styles.loadingInfoView}>
+                    <View style={styles.loadingLine} />
+                    <View style={[styles.loadingLine, { width: '60%' }]} />
+                    <View style={[styles.loadingLine, { width: '40%' }]} />
+                </View>
+            </View>
+        );
+    }
+
+    return (
+        <TouchableOpacity 
+            style={styles.productCard} 
+            onPress={() => props.navToDetail(data)}
+            activeOpacity={0.9}
+        >
+            {/* Image Container */}
+            <View style={styles.imageContainer}>
                 <FastImage
-                    style={styles.image}
+                    style={styles.productImage}
                     source={{
-                        uri: data.image ? ASSETS_DIR + 'product/' + data.image : ASSETS_DIR + '/assets/img/default.png',
+                        uri: data?.image ? ASSETS_DIR + 'product/' + data.image : ASSETS_DIR + '/assets/img/default.png',
                         priority: FastImage.priority.high,
                     }}
                     resizeMode={FastImage.resizeMode.contain}
                 />
-            </View>
-            <View style={[styles.infromationView, props.fromDynamic ? { width: wp('34%') } : null]}>
-                <View style={styles.starView}>
-                    <Stars
-                        default={data.review_avg ? parseFloat(data.review_avg) : 0}
-                        count={5}
-                        half={true}
-                        starSize={45}
-                        fullStar={<Icon name={'star'} size={11} style={[styles.myStarStyle]} />}
-                        emptyStar={<Icon name={'star-o'} size={11} style={[styles.myStarStyle, styles.myEmptyStarStyle]} />}
-                        halfStar={<Icon name={'star-half-empty'} size={11} style={[styles.myStarStyle]} />}
-                        disabled={true}
+                
+                {/* Discount Badge - Only show if there's a discount */}
+                {hasDiscount && discountPercentage > 0 && (
+                    <View style={styles.discountBadge}>
+                        <Text style={styles.discountText}>{Math.round(discountPercentage)}% OFF</Text>
+                    </View>
+                )}
+
+                {/* Wishlist Heart */}
+                <TouchableOpacity 
+                    style={styles.heartButton} 
+                    onPress={() => props.userAuth ? props.addToWishlist(data.id) : props.navToLogin()}
+                    activeOpacity={0.7}
+                >
+                    <Icon 
+                        name={isInWishlist ? "heart" : "heart-o"} 
+                        size={14} 
+                        color={isInWishlist ? "#ff4757" : "#999"} 
                     />
-                </View>
-                <Text style={styles.productName} numberOfLines={2}>{data.product_description.name}</Text>
-
-                <View style={styles.priceView}>
-                    {
-                        special > 0 ?
-                            <View style={styles.SpcialView}>
-                                <Text style={styles.price}>{CURRENCY}{numberWithComma(special)} </Text>
-                                <Text style={styles.originalPrice}>{CURRENCY}{numberWithComma(data.price)}</Text>
-                            </View> : <Text style={[styles.price, { flex: 0.70 }]}>{CURRENCY}{numberWithComma(data.price)}</Text>
-                    }
-                    {
-                        off != null && <Text style={styles.offerTxt}>{off} </Text>
-                    }
-                </View>
-
-            </View>
-            {
-                data.quantity == 0 && <View style={GlobalStyles.outstockview} >
-                    <Text style={GlobalStyles.outofstockTxt}>{props.strings.common.label_out_of_stock}</Text>
-                </View>
-            }
-            {
-                data.quantity > 0 && data.new == true &&
-                <View style={GlobalStyles.newtextView} >
-                    <Text style={GlobalStyles.newTxt}>{props.strings.common.label_new}</Text>
-                </View>
-            }
-            {
-                wishlistArr && wishlistArr.length > 0 && wishlistArr.includes(data.id) ? <TouchableOpacity style={[GlobalStyles.FavCircle, props.fromDynamic && { left: wp('27%') }]} onPress={() => props.addToWishlist(data.id)} >
-                    <Icon name="heart" style={GlobalStyles.unFavIcon} color={Colors().white} />
-                </TouchableOpacity> : <TouchableOpacity style={[GlobalStyles.unFavCircle, props.fromDynamic && { left: wp('27%') }]} onPress={() => props.userAuth ? props.addToWishlist(data.id) : props.navToLogin()}>
-                    <Icon name="heart-o" style={GlobalStyles.unFavIcon} color={Colors().secondry_text_color} />
                 </TouchableOpacity>
-            }
 
+                {/* New Badge */}
+                {data?.quantity > 0 && data?.new === true && (
+                    <View style={styles.newBadge}>
+                        <Text style={styles.newText}>NEW</Text>
+                    </View>
+                )}
+            </View>
+
+            {/* Content Container */}
+            <View style={styles.contentContainer}>
+                {/* Rating */}
+                {data?.review_avg && parseFloat(data.review_avg) > 0 && (
+                    <View style={styles.ratingContainer}>
+                        <Stars
+                            default={parseFloat(data.review_avg)}
+                            count={5}
+                            half={true}
+                            starSize={35}
+                            spacing={1}
+                            fullStar={<Icon name={'star'} size={10} color="#ffd700" />}
+                            emptyStar={<Icon name={'star-o'} size={10} color="#ddd" />}
+                            halfStar={<Icon name={'star-half-empty'} size={10} color="#ffd700" />}
+                            disabled={true}
+                        />
+                        <Text style={styles.ratingText}>({parseFloat(data.review_avg).toFixed(1)})</Text>
+                    </View>
+                )}
+
+                {/* Product Name */}
+                <Text style={styles.productName} numberOfLines={2}>
+                    {data?.product_description?.name || 'Product Name'}
+                </Text>
+
+                {/* Price Section */}
+                <View style={styles.priceSection}>
+                    {/* Current Price */}
+                    <Text style={styles.currentPrice}>
+                        {CURRENCY}{numberWithComma(currentPrice)}
+                    </Text>
+                    
+                    {/* MRP - Always show if available */}
+                    {mrpPrice && parseFloat(mrpPrice) !== parseFloat(currentPrice) && (
+                        <Text style={styles.mrpPrice}>
+                            MRP {CURRENCY}{numberWithComma(mrpPrice)}
+                        </Text>
+                    )}
+                    
+                    {/* Save Amount */}
+                    {hasDiscount && mrpPrice && (
+                        <Text style={styles.saveText}>
+                            You save {CURRENCY}{numberWithComma((parseFloat(mrpPrice) - parseFloat(currentPrice)).toFixed(2))}
+                        </Text>
+                    )}
+                </View>
+
+                {/* Stock Status */}
+                {data?.quantity === 0 && (
+                    <View style={styles.outOfStockContainer}>
+                        <Text style={styles.outOfStockText}>Out of Stock</Text>
+                    </View>
+                )}
+            </View>
+
+            {/* Out of Stock Overlay */}
+            {data?.quantity === 0 && (
+                <View style={styles.stockOverlay}>
+                    <Text style={styles.overlayText}>OUT OF STOCK</Text>
+                </View>
+            )}
         </TouchableOpacity>
-
-    )
+    );
 }
 
 export default ProductView;
 
 const styles = StyleSheet.create({
-    productBox: {
+    productCard: {
+        backgroundColor: '#fff',
+        borderRadius: wp('2.5%'),
+        margin: wp('1%'),
+      
+        overflow: 'hidden',
+        width: wp('46%'), // Fixed width to prevent overlap
+        minHeight: hp('32%'), // Minimum height for consistency
+    },
+    
+    imageContainer: {
+        backgroundColor: '#f8f9fa',
+        height: hp('16%'),
+        position: 'relative',
         justifyContent: 'center',
         alignItems: 'center',
-        width: '100%',
-        maxWidth: wp('100%'),
-        flex: 1,
-        backgroundColor: Colors().white,
-        flexDirection: 'column'
+        paddingVertical: hp('1%'),
     },
-    imageView: {
-        flex: 0.63,
-        backgroundColor: Colors().light_white,
-        width: wp('42.2%'),
-        borderTopStartRadius: wp('2%'),
-        borderTopEndRadius: wp('2%')
+    
+    productImage: {
+        width: '85%',
+        height: '85%',
     },
-    image: {
-        resizeMode: 'contain',
-        alignSelf: 'center',
-        height: hp('16%'),
-        width: wp('30%'),
+    
+    discountBadge: {
+        position: 'absolute',
+        top: hp('0.8%'),
+        left: wp('2%'),
+        backgroundColor: '#ff4757',
+        paddingHorizontal: wp('1.5%'),
+        paddingVertical: hp('0.2%'),
+        borderRadius: wp('0.8%'),
+        zIndex: 2,
     },
-    infromationView: {
-        flex: 0.37,
-        width: wp('40%'),
-    },
-    starView: {
-        alignItems: 'flex-start',
-        marginVertical: hp('0.6%'),
-    },
-    myStarStyle: {
-        color: '#ffd12d',
-        backgroundColor: 'transparent',
-        marginHorizontal: 1,
-        textShadowRadius: 1,
-
-    },
-    myEmptyStarStyle: {
-        color: 'gray',
-    },
-    productName: {
-        color: Colors().secondry_text_color,
-        fontFamily: Fonts.Font_Semibold,
-        fontSize: wp('3.5%')
-    },
-    priceView: {
-        flex: 1,
-        marginTop: hp('0.6%'),
-        flexDirection: 'row',
-    },
-    price: {
-        color: Colors().black,
-        fontFamily: Fonts.Font_Bold,
-        fontSize: wp('3.5%'),
-        textAlign: 'left'
-    },
-    originalPrice: {
-        color: Colors().secondry_text_color,
-        fontFamily: Fonts.Font_Bold,
-        fontSize: wp('2.6%'),
-        textDecorationLine: 'line-through',
-        bottom: hp('0.2%'),
-        textAlign: 'left'
-    },
-    offerTxt: {
-        flex: 0.30,
-        textAlign: 'center',
-        color: Colors().link_color,
-        fontFamily: Fonts.Font_Semibold,
+    
+    discountText: {
+        color: '#fff',
         fontSize: wp('2.2%'),
-        textTransform: 'uppercase',
-        borderRadius: 5,
-        textAlign: 'left'
+        fontWeight: 'bold',
     },
-    SpcialView: {
-        flex: 0.70,
-        flexDirection: 'row'
+    
+    heartButton: {
+        position: 'absolute',
+        top: hp('0.8%'),
+        right: wp('2%'),
+        backgroundColor: '#fff',
+        width: wp('6.5%'),
+        height: wp('6.5%'),
+        borderRadius: wp('3.25%'),
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 1,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 1,
+        elevation: 2,
+        zIndex: 2,
+    },
+    
+    newBadge: {
+        position: 'absolute',
+        bottom: hp('0.8%'),
+        right: wp('2%'),
+        backgroundColor: '#00b894',
+        paddingHorizontal: wp('1.5%'),
+        paddingVertical: hp('0.2%'),
+        borderRadius: wp('0.8%'),
+        zIndex: 2,
+    },
+    
+    newText: {
+        color: '#fff',
+        fontSize: wp('2%'),
+        fontWeight: 'bold',
+    },
+    
+    contentContainer: {
+        padding: wp('2.5%'),
+        flex: 1,
+        justifyContent: 'space-between',
+    },
+    
+    ratingContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: hp('0.5%'),
+    },
+    
+    ratingText: {
+        marginLeft: wp('1%'),
+        fontSize: wp('2.2%'),
+        color: '#666',
+    },
+    
+    productName: {
+        fontSize: wp('3%'),
+        fontWeight: '600',
+        color: '#333',
+        lineHeight: wp('4%'),
+        marginBottom: hp('0.8%'),
+        minHeight: hp('4%'), // Ensure consistent height
+    },
+    
+    priceSection: {
+        marginTop: 'auto',
+    },
+    
+    currentPrice: {
+        fontSize: wp('3.8%'),
+        fontWeight: 'bold',
+        color: '#2d3436',
+        marginBottom: hp('0.2%'),
+    },
+    
+    mrpPrice: {
+        fontSize: wp('2.5%'),
+        color: '#999',
+        textDecorationLine: 'line-through',
+        marginBottom: hp('0.2%'),
+    },
+    
+    saveText: {
+        fontSize: wp('2.3%'),
+        color: '#27ae60',
+        fontWeight: '500',
+    },
+    
+    outOfStockContainer: {
+        backgroundColor: '#ff6b6b',
+        paddingHorizontal: wp('1.5%'),
+        paddingVertical: hp('0.2%'),
+        borderRadius: wp('0.8%'),
+        alignSelf: 'flex-start',
+        marginTop: hp('0.5%'),
+    },
+    
+    outOfStockText: {
+        color: '#fff',
+        fontSize: wp('2%'),
+        fontWeight: 'bold',
+    },
+    
+    stockOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 3,
+    },
+    
+    overlayText: {
+        color: '#fff',
+        fontSize: wp('3.5%'),
+        fontWeight: 'bold',
+    },
+    
+    // Loading Styles
+    loadingContainer: {
+        backgroundColor: '#f5f5f5',
+        borderRadius: wp('2.5%'),
+        margin: wp('1%'),
+        width: wp('46%'),
+        minHeight: hp('32%'),
+        overflow: 'hidden',
+    },
+    
+    loadingImageView: {
+        backgroundColor: '#e0e0e0',
+        height: hp('16%'),
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    
+    loadingInfoView: {
+        padding: wp('2.5%'),
+        flex: 1,
+    },
+    
+    loadingLine: {
+        height: hp('1.2%'),
+        backgroundColor: '#d0d0d0',
+        borderRadius: wp('0.3%'),
+        marginBottom: hp('0.8%'),
+        width: '100%',
     },
 });

@@ -252,7 +252,7 @@ function ProfileScreen(props) {
                     </View>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.listView} onPress={() => setAlert(true)}>
+                {/* <TouchableOpacity style={styles.listView} onPress={() => setAlert(true)}>
                     <View style={styles.leftSide}>
                         <MatIcon name="delete" style={styles.icon} />
                     </View>
@@ -262,7 +262,7 @@ function ProfileScreen(props) {
                     <View style={styles.rightSide}>
                         <MatIcon name="arrow-forward-ios" style={[styles.rightIcon, { transform: [{ rotateY: I18nManager.isRTL == true ? '180deg' : '0deg' }] }]} />
                     </View>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
 
 
                 <AwesomeAlert

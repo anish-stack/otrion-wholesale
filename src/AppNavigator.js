@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform, StyleSheet, Image, Text, View, Alert } from 'react-native';
+import { Platform, StyleSheet, Image, Text, View, Alert,TouchableOpacity } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createStackNavigator, CardStyleInterpolators } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';

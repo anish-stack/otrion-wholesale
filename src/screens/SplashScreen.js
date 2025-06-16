@@ -37,87 +37,127 @@ function SplashScreen(props) {
         // };
     }
 
-    useEffect(() => {
-        LogBox.ignoreLogs(['Animated: `useNativeDriver`']);
+ useEffect(() => {
+    console.log('🚀 useEffect started - Component mounted/dependency changed');
+    
+    LogBox.ignoreLogs(['Animated: `useNativeDriver`']);
+    
+    console.log('📱 Starting animation...');
+    Animated.timing(animatedValue, {
+        toValue: 1,
+        duration: 1000,
+        easing: Easing.ease,
+        useNativeDriver: true,
+    }).start(() => {
+        console.log('✅ Animation completed');
+    });
 
-        Animated.timing(animatedValue, {
-            toValue: 1,
-            duration: 1000,
-            easing: Easing.ease,
-            useNativeDriver: true, // Add this line
-        }).start();
-
-        async function fetchData() {
-            // You can await here
-
+    async function fetchData() {
+        console.log('🔄 fetchData function started');
+        
+        try {
+            // Get language
             let getLangauge = await AsyncStorage.getItem('Language');
-
             let language = 'en';
             if (getLangauge) {
                 language = getLangauge;
-            }
+               
+            } 
 
-            //device id 
+            // Get device info
             let deviceID = await DeviceInfo.getUniqueId();
             let deviceType = Platform.OS;
-            await AsyncStorage.setItem("DEVICEID", deviceID)
+            console.log('📱 Device ID:', deviceID);
+            console.log('📱 Device Type:', deviceType);
+            
+            await AsyncStorage.setItem("DEVICEID", deviceID);
+            
+            // Check GET_UPDATED_DATA flag
             let getNewData = await AsyncStorage.getItem("GET_UPDATED_DATA");
             let callAPI = false;
 
             if (getNewData) {
-                getNewData = JSON.parse(getNewData)
+                getNewData = JSON.parse(getNewData);
+              
                 if (getNewData == 1) {
                     callAPI = true;
+                    console.log('✅ API call triggered by GET_UPDATED_DATA flag');
                 }
-            }
-            else if (getNewData == null) {
+            } else if (getNewData == null) {
                 callAPI = true;
-            }
-            else {
+               
+            } else {
                 callAPI = false;
+                console.log('❌ API call skipped based on GET_UPDATED_DATA');
             }
 
-            //7 DAYS SETTING TO REFESH AUTOMATIC API
-            let lastRequest = await AsyncStorage.getItem("LAST_REQUEST")
-            lastRequest = JSON.parse(lastRequest)
-            let currentDateTime = moment().format();
+          
+            callAPI = true; // Force API call every time
 
-            if (callAPI == true || (lastRequest == null || currentDateTime > lastRequest)) {
-                getApi.getData(
-                    "getHomePageInit?language=" + language + '&device_id=' + deviceID + '&deviceType=' + deviceType,
-                    [],
-                ).then((async response => {
-                    if (response.status == 1) {
-                        //new api call after 7 days 
-                        let momentStoreExpire = moment().add(24 * 7, 'hours').format();
-                        await AsyncStorage.setItem("LAST_REQUEST", JSON.stringify(momentStoreExpire));
-                        await AsyncStorage.setItem('API_DATA', JSON.stringify(response.data))
-                        await AsyncStorage.setItem("GET_UPDATED_DATA", JSON.stringify(false));
-                        getApi.getData(
-                            "setCacheFalse?device_id=" + deviceID,
-                            [],
-                        ).then((async response => {
+            console.log('🎯 Final callAPI decision:', callAPI);
+
+            if (callAPI) {
+              
+                const apiUrl = "getHomePageInit?language=" + language + '&device_id=' + deviceID + '&deviceType=' + deviceType;
+            
+                getApi.getData(apiUrl, [])
+                    .then(async response => {
+                      
+                        if (response.status == 1) {
+                          
+                            let momentStoreExpire = moment().add(24 * 7, 'hours').format();
+                         
+                            await AsyncStorage.setItem("LAST_REQUEST", JSON.stringify(momentStoreExpire));
+                        
+                            await AsyncStorage.setItem('API_DATA', JSON.stringify(response.data));
+                         
+                            await AsyncStorage.setItem("GET_UPDATED_DATA", JSON.stringify(false));
+                          
+                            getApi.getData("setCacheFalse?device_id=" + deviceID, [])
+                                .then(async response => {
+                                  
+                                    console.log('🎯 Calling props.requestInit()');
+                                    props.requestInit();
+                                })
+                                .catch(error => {
+                                    console.error('❌ setCacheFalse API error:', error);
+                                    // Still call requestInit even if setCacheFalse fails
+                                    props.requestInit();
+                                });
+                        } else {
+                            console.log('❌ API call failed - status not 1:', response);
+                            // Call requestInit anyway to prevent app from hanging
                             props.requestInit();
-                        }));
-                    }
-                }));
-            }
-            else {
-                let loadApp = setTimeout(() => props.requestInit(), 500);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('❌ getHomePageInit API error:', error);
+                        // Call requestInit anyway to prevent app from hanging
+                        props.requestInit();
+                    });
+            } else {
+                // console.log('⏭️ Skipping API call - calling requestInit with delay');
+                let loadApp = setTimeout(() => {
+                    console.log('🎯 Timeout completed - calling props.requestInit()');
+                    props.requestInit();
+                }, 500);
+                
                 return () => {
+                    console.log('🧹 Cleaning up timeout');
                     clearTimeout(loadApp);
                 };
             }
+        } catch (error) {
+            console.error('💥 Error in fetchData:', error);
+            // Ensure requestInit is called even if there's an error
+            props.requestInit();
         }
-        fetchData();
+    }
 
-    }, [
+    fetchData();
+    console.log('🏁 useEffect setup completed');
 
-        navigateToMain()
-
-    ]);
-
-
+}, [navigateToMain()]);
     return (
         <OtrixContainer>
             <View style={{ backgroundColor: Colors().white, flex: 1 }}>

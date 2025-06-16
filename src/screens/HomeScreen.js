@@ -531,6 +531,7 @@ function HomeScreen(props) {
             setState(prev => ({ ...prev, cacheLoading: true }));
             
             const cachedData = await getCachedData(CACHE_KEYS.API_DATA);
+            console.log("cachedData",cachedData)
             
             if (cachedData) {
                 setState(prev => ({ 
@@ -555,7 +556,7 @@ function HomeScreen(props) {
             const apiUrl = `getHomePage?language=${language}&reactnativeapp=1`;
             
             const response = await getApi.getData(apiUrl, []);
-            
+            console.log("response.data",response.data)
             if (response.status === 1) {
                 setState(prev => ({
                     ...prev,
@@ -762,6 +763,7 @@ function HomeScreen(props) {
     // Render main content
     const renderMainContent = () => {
         const { homePageStoredData, homePageData, imageSimilar, apiLoading } = state;
+        console.log("homePageStoredData",homePageStoredData?.categories)
 
         return (
             <ScrollView

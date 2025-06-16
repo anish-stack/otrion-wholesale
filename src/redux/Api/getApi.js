@@ -20,6 +20,7 @@ const getDataService = {
             })
                 .then((response) => response.json())
                 .then((json) => {
+                      console.log("Response:", json); 
                     if (json.status == 0 && json.message == 'unauthorize') {
                         RootNavigation.navigate('UnauthorizeScreen', {});
                     }
